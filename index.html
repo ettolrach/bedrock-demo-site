@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Bedrock Demo</title>
+<meta charset="utf-8" />
+
+<script defer>
+    function add_message(from, message) {
+        const p = document.createElement("p");
+        const strong = document.createElement("strong");
+        const new_content = document.createTextNode(message);
+
+        const bold_text = document.createTextNode(from + ": ");
+        strong.appendChild(bold_text);
+
+        p.appendChild(strong);
+        p.appendChild(new_content);
+
+        const bottom_element = document.querySelector("#dummy");
+        document.querySelector("#history").appendChild(p, bottom_element);
+    }
+    function add_response(text) {
+        add_message("Response", text)
+    }
+    function add_prompt(text) {
+        add_message("Prompt", text);
+    }
+
+    function show_processing() {
+        document.querySelector("#processing_text").style.display = "block";
+    }
+    function hide_processing() {
+        document.querySelector("#processing_text").style.display = "none";
+    }
+
+    async function get_response(text) {
+        try {
+            const http_response = await fetch("http://localhost:8080/bedrock", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "text/plain",
+                    "Content-Length": text.length.toString()
+                },
+                body: text,
+            });
+            let response_json = "";
+            let decoder = new TextDecoder();
+            for await (const chunk of http_response.body) {
+                response_json += decoder.decode(chunk);
+            }
+            response = JSON.parse(response_json);
+            return response.body;
+        } catch (err) {
+            console.error(err);
+        }
+    }
+    async function handle_form() {
+        const prompt = document.querySelector("#prompt_text").value;
+        add_prompt(prompt)
+        show_processing();
+        const response = await get_response(prompt);
+        hide_processing();
+        add_response(response);
+    }
+    window.addEventListener("load", (event) => {
+        document.querySelector("#submit").addEventListener("click", handle_form);
+    })
+</script>
+</head>
+
+<body>
+<main>
+    <h1>Bedrock Demo</h1>
+    <div id="history" style="margin: 2rem; border: 0.2rem solid grey; padding: 0.2rem; height: 50vh; overflow-y: auto;">
+        <h2>Chat History</h2>
+        <span id="dummy"></span>
+    </div>
+    <div id="prompt" class="prompt">
+        <ul>
+            <li>
+                <label for="prompt_text">Prompt:</label>
+                <textarea id="prompt_text" name="user_text" rows="5">Explain black holes to 8th graders.</textarea>
+            </li>
+            <li class="button">
+                <button id="submit">Submit prompt</button>
+            </li>
+        </ul>
+        <p id="processing_text" style="display: none;">Processing response…</p>
+    </div>
+</main>
+</body>
+</html>
